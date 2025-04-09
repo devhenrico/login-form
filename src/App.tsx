@@ -105,7 +105,7 @@ export function App() {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="terms"
-                  className="border-2 border-gray-700 cursor-pointer h-5 w-5 data-[state=checked]:bg-violet-500"
+                  className="border-2 border-gray-700 cursor-pointer h-5 w-5"
                 />
                 <Label
                   htmlFor="terms"
