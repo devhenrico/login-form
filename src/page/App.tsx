@@ -37,7 +37,7 @@ const userCreateSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z
     .string()
-    .min(6, { message: "Password must be at least 6 characters" }),
+    .length(6, { message: "Password must be exactly 6 characters" }),
 });
 
 export function App() {
