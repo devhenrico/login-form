@@ -38,20 +38,26 @@ const userCreateSchema = z.object({
   password: z
     .string()
     .length(6, { message: "Password must be exactly 6 characters" }),
+  terms: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the Terms & Conditions" }),
+  }),
 });
 
 export function App() {
   const [showPassword, setShowPassword] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [errors, setErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    password?: string;
+    terms?: string;
+  }>({});
 
   const firstName = useRef<HTMLInputElement>(null);
   const lastName = useRef<HTMLInputElement>(null);
   const email = useRef<HTMLInputElement>(null);
   const password = useRef<HTMLInputElement>(null);
-
-  const handleCheckboxChange = (checked: boolean) => {
-    setIsChecked(checked);
-  };
 
   async function createUsers() {
     const userData = {
@@ -59,15 +65,11 @@ export function App() {
       lastName: lastName.current?.value,
       email: email.current?.value,
       password: password.current?.value,
+      terms: acceptTerms,
     };
 
     try {
       userCreateSchema.parse(userData);
-
-      if (!isChecked) {
-        alert("You must agree to the Terms & Conditions to register.");
-        return;
-      }
 
       await api().post("/users", userData);
 
@@ -77,11 +79,18 @@ export function App() {
       if (lastName.current) lastName.current.value = "";
       if (email.current) email.current.value = "";
       if (password.current) password.current.value = "";
-      setIsChecked(false);
+      setAcceptTerms(false);
+      setErrors({});
     } catch (error) {
       if (error instanceof z.ZodError) {
-        alert(error.errors.map((err) => err.message).join(", "));
+        const fieldErrors: typeof errors = {};
+        error.errors.forEach((err) => {
+          const fieldName = err.path[0] as keyof typeof errors;
+          fieldErrors[fieldName] = err.message;
+        });
+        setErrors(fieldErrors);
       } else {
+        console.error("Unexpected error:", error);
         alert("An unexpected error occurred");
       }
     }
@@ -115,8 +124,8 @@ export function App() {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="left-4 cursor-pointer border-none text-gray-800 transition-colors hover:bg-gray-800 hover:text-white" />
-            <CarouselNext className="right-4 cursor-pointer border-none text-gray-800 transition-colors hover:bg-gray-800 hover:text-white" />
+            <CarouselPrevious className="left-4 cursor-pointer border-none text-slate-800 transition-colors hover:bg-slate-800 hover:text-white" />
+            <CarouselNext className="right-4 cursor-pointer border-none text-slate-800 transition-colors hover:bg-slate-800 hover:text-white" />
           </Carousel>
         </div>
         <Card className="border-none bg-transparent p-4 shadow-none sm:p-6">
@@ -137,28 +146,52 @@ export function App() {
           <CardContent className="mt-2 sm:mt-4">
             <form className="flex flex-col gap-4 sm:gap-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                <Input
-                  className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
-                  type="text"
-                  placeholder="First name"
-                  ref={firstName}
-                  maxLength={50}
-                />
-                <Input
-                  className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
-                  type="text"
-                  placeholder="Last name"
-                  ref={lastName}
-                  maxLength={50}
-                />
+                <div className="flex-1">
+                  <Input
+                    className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
+                    type="text"
+                    placeholder="First name"
+                    ref={firstName}
+                    maxLength={50}
+                  />
+                  {errors.firstName && (
+                    <span className="mt-1 text-xs text-gray-300">
+                      {errors.firstName}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <Input
+                    className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
+                    type="text"
+                    placeholder="Last name"
+                    ref={lastName}
+                    maxLength={50}
+                  />
+                  {errors.lastName && (
+                    <span className="mt-1 text-xs text-gray-300">
+                      {errors.lastName}
+                    </span>
+                  )}
+                </div>
               </div>
-              <Input
-                className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
-                type="email"
-                placeholder="Email"
-                ref={email}
-                maxLength={50}
-              />
+
+              <div>
+                <Input
+                  className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
+                  type="email"
+                  placeholder="Email"
+                  ref={email}
+                  maxLength={50}
+                />
+                {errors.email && (
+                  <span className="mt-1 text-xs text-gray-300">
+                    {errors.email}
+                  </span>
+                )}
+              </div>
+
               <div className="relative">
                 <Input
                   className="h-12 border-none bg-gray-700 px-4 py-3 text-white placeholder:text-gray-400 sm:py-4"
@@ -169,7 +202,7 @@ export function App() {
                 />
                 <button
                   type="button"
-                  className="absolute top-1/2 right-4 -translate-y-1/2 text-gray-400 transition-colors hover:text-white"
+                  className="absolute top-3.5 right-4 text-gray-400 transition-colors hover:text-white"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -179,26 +212,38 @@ export function App() {
                     <FaEye size={20} />
                   )}
                 </button>
+                {errors.password && (
+                  <span className="mt-1 text-xs text-gray-300">
+                    {errors.password}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="terms"
-                  className="h-5 w-5 cursor-pointer border-2 border-gray-700"
-                  checked={isChecked}
-                  onCheckedChange={handleCheckboxChange}
-                />
-                <Label
-                  htmlFor="terms"
-                  className="text-xs leading-none text-white sm:text-sm"
-                >
-                  I agree to the
-                  <a
-                    href="#"
-                    className="ml-1 text-violet-700 underline transition-colors hover:text-violet-800"
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="terms"
+                    checked={acceptTerms}
+                    onCheckedChange={(checked) => setAcceptTerms(!!checked)}
+                    className="h-5 w-5 cursor-pointer border-2 border-gray-700"
+                  />
+                  <Label
+                    htmlFor="terms"
+                    className="text-xs leading-none text-white sm:text-sm"
                   >
-                    Terms & Conditions
-                  </a>
-                </Label>
+                    I agree to the
+                    <a
+                      href="#"
+                      className="ml-1 text-violet-700 underline transition-colors hover:text-violet-800"
+                    >
+                      Terms & Conditions
+                    </a>
+                  </Label>
+                </div>
+                {errors.terms && (
+                  <span className="mt-1 text-xs text-gray-300">
+                    {errors.terms}
+                  </span>
+                )}
               </div>
               <Button
                 type="button"
